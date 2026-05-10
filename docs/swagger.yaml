@@ -1,0 +1,928 @@
+basePath: /api/v1
+definitions:
+  handler.ErrorDetail:
+    properties:
+      code:
+        example: VALIDATION_ERROR
+        type: string
+      details: {}
+      message:
+        example: Request validation failed.
+        type: string
+    type: object
+  handler.ErrorEnvelope:
+    properties:
+      error:
+        $ref: '#/definitions/handler.ErrorDetail'
+      success:
+        example: false
+        type: boolean
+    type: object
+  handler.PaginatedEnvelope:
+    properties:
+      data: {}
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 87
+        type: integer
+      total_pages:
+        example: 5
+        type: integer
+    type: object
+  handler.SuccessEnvelope:
+    properties:
+      data: {}
+      success:
+        example: true
+        type: boolean
+    type: object
+  model.BillResponse:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      due_date:
+        description: YYYY-MM-DD
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      paid_at:
+        type: string
+      status:
+        type: string
+      transaction_id:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.BillSummary:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      paid_at:
+        type: string
+      status:
+        type: string
+      transaction_id:
+        type: string
+    type: object
+  model.CreateBillRequest:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      due_date:
+        description: YYYY-MM-DD
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+    type: object
+  model.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  model.LoginResponse:
+    properties:
+      tokens:
+        $ref: '#/definitions/model.TokenPair'
+      user:
+        $ref: '#/definitions/model.UserResponse'
+    type: object
+  model.LogoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  model.PayBillResponse:
+    properties:
+      bill:
+        $ref: '#/definitions/model.BillSummary'
+      new_balance:
+        type: integer
+      transaction:
+        $ref: '#/definitions/model.TransactionResponse'
+    type: object
+  model.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  model.RefreshTokenResponse:
+    properties:
+      tokens:
+        $ref: '#/definitions/model.TokenPair'
+    type: object
+  model.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+    type: object
+  model.RegisterResponse:
+    properties:
+      tokens:
+        $ref: '#/definitions/model.TokenPair'
+      user:
+        $ref: '#/definitions/model.UserResponse'
+      wallet:
+        $ref: '#/definitions/model.WalletResponse'
+    type: object
+  model.SendRequest:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      note:
+        type: string
+      recipient_wallet_number:
+        type: string
+    type: object
+  model.SendResponse:
+    properties:
+      new_balance:
+        type: integer
+      transaction:
+        $ref: '#/definitions/model.TransactionResponse'
+    type: object
+  model.TokenPair:
+    properties:
+      access_token:
+        type: string
+      access_token_expires_at:
+        type: string
+      refresh_token:
+        type: string
+      refresh_token_expires_at:
+        type: string
+    type: object
+  model.TopUpRequest:
+    properties:
+      amount:
+        type: integer
+      note:
+        type: string
+    type: object
+  model.TopUpResponse:
+    properties:
+      new_balance:
+        type: integer
+      transaction:
+        $ref: '#/definitions/model.TransactionResponse'
+    type: object
+  model.TransactionResponse:
+    properties:
+      amount:
+        type: integer
+      category:
+        type: string
+      counterpart_name:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      note:
+        type: string
+      recipient_wallet_number:
+        type: string
+      sender_wallet_number:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  model.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+    type: object
+  model.WalletOwnerResponse:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+    type: object
+  model.WalletResponse:
+    properties:
+      balance:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      owner:
+        $ref: '#/definitions/model.WalletOwnerResponse'
+      updated_at:
+        type: string
+      wallet_number:
+        type: string
+    type: object
+  model.WithdrawRequest:
+    properties:
+      amount:
+        type: integer
+      note:
+        type: string
+    type: object
+  model.WithdrawResponse:
+    properties:
+      new_balance:
+        type: integer
+      transaction:
+        $ref: '#/definitions/model.TransactionResponse'
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: backend@ewallet.com
+    name: Backend Team
+  description: Production-ready eWallet backend — auth, wallets, transactions, bills,
+    expense tracking.
+  termsOfService: http://swagger.io/terms/
+  title: eWallet API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 'Validates credentials and returns a JWT access token + refresh
+        token pair. Access token TTL: 15 min. Refresh token TTL: 7 days.'
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.LoginResponse'
+              type: object
+        "400":
+          description: Missing fields
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      summary: Login
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidates the refresh token. The access token expires naturally
+        after 15 minutes.
+      parameters:
+      - description: Refresh token to invalidate
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SuccessEnvelope'
+        "400":
+          description: Missing refresh token
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Token not found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a valid refresh token for a brand-new token pair. The
+        old refresh token is invalidated (rotation enforced).
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RefreshTokenResponse'
+              type: object
+        "400":
+          description: Missing refresh token
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      summary: Refresh access token
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a user account and auto-provisions a wallet. Returns JWT
+        tokens immediately so no second login is needed.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RegisterResponse'
+              type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "409":
+          description: Email already exists
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      summary: Register a new user
+      tags:
+      - Auth
+  /bills:
+    get:
+      description: Returns paginated bills for the authenticated user. Results are
+        sorted by due_date ascending (soonest first).
+      parameters:
+      - description: Filter by status
+        enum:
+        - pending
+        - paid
+        in: query
+        name: status
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.PaginatedEnvelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.BillResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List bills
+      tags:
+      - Bills
+    post:
+      consumes:
+      - application/json
+      description: Creates a new pending bill for the authenticated user.
+      parameters:
+      - description: Bill details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateBillRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.BillResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Create bill
+      tags:
+      - Bills
+  /bills/{bill_id}:
+    delete:
+      description: Permanently deletes a pending bill. Paid bills are locked and cannot
+        be deleted (financial audit trail).
+      parameters:
+      - description: Bill UUID
+        in: path
+        name: bill_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SuccessEnvelope'
+        "400":
+          description: Cannot delete paid bill
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Delete bill
+      tags:
+      - Bills
+    get:
+      description: Returns details for one bill. The bill must belong to the authenticated
+        user.
+      parameters:
+      - description: Bill UUID
+        in: path
+        name: bill_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.BillResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get single bill
+      tags:
+      - Bills
+  /bills/{bill_id}/pay:
+    post:
+      description: Marks a pending bill as paid and atomically deducts the bill amount
+        from the wallet. The wallet deduction and bill status update happen in a single
+        DB transaction.
+      parameters:
+      - description: Bill UUID
+        in: path
+        name: bill_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.PayBillResponse'
+              type: object
+        "400":
+          description: Already paid / insufficient funds
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Pay bill
+      tags:
+      - Bills
+  /transactions:
+    get:
+      description: Returns paginated transaction history for the caller's wallet.
+        Sorted by date descending (newest first). Supports filtering by type, category,
+        and date range.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by type
+        enum:
+        - send
+        - receive
+        - top_up
+        - withdrawal
+        - bill_payment
+        in: query
+        name: type
+        type: string
+      - description: Filter by category
+        enum:
+        - food
+        - transport
+        - bills
+        - transfer
+        - top_up
+        - withdrawal
+        - other
+        in: query
+        name: category
+        type: string
+      - description: Start date — ISO 8601
+        example: "2026-05-01T00:00:00Z"
+        in: query
+        name: from
+        type: string
+      - description: End date — ISO 8601
+        example: "2026-05-31T23:59:59Z"
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.PaginatedEnvelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.TransactionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Transaction history
+      tags:
+      - Transactions
+  /transactions/{transaction_id}:
+    get:
+      description: Returns details for one transaction. The caller must be either
+        the sender or the recipient — returns 403 otherwise.
+      parameters:
+      - description: Transaction UUID
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TransactionResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get single transaction
+      tags:
+      - Transactions
+  /transactions/send:
+    post:
+      consumes:
+      - application/json
+      description: Transfers money from the caller's wallet to another wallet by wallet
+        number. Both the debit and credit are atomic — if either fails the whole operation
+        is rolled back.
+      parameters:
+      - description: Transfer details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SendResponse'
+              type: object
+        "400":
+          description: Validation error / insufficient funds / self-transfer
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Recipient wallet not found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Send money
+      tags:
+      - Transactions
+  /transactions/top-up:
+    post:
+      consumes:
+      - application/json
+      description: 'Adds money to the caller''s own wallet. Simulates an external
+        bank deposit (no real payment gateway in v1). Min: $1.00 (100 cents). Max:
+        $100,000.00 (10,000,000 cents).'
+      parameters:
+      - description: Top-up details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.TopUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TopUpResponse'
+              type: object
+        "400":
+          description: Amount out of range
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Top-up / Deposit
+      tags:
+      - Transactions
+  /transactions/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: 'Deducts money from the caller''s wallet. Simulates a bank withdrawal.
+        Min: $1.00 (100 cents).'
+      parameters:
+      - description: Withdrawal details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.WithdrawRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.WithdrawResponse'
+              type: object
+        "400":
+          description: Insufficient funds
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Withdraw
+      tags:
+      - Transactions
+  /wallet:
+    get:
+      description: Returns the authenticated user's wallet including current balance
+        in cents. Divide by 100 for display value.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.SuccessEnvelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.WalletResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+        "404":
+          description: Wallet not found
+          schema:
+            $ref: '#/definitions/handler.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get my wallet
+      tags:
+      - Wallet
+securityDefinitions:
+  BearerAuth:
+    description: 'Type "Bearer" followed by a space and your access token. Example:
+      "Bearer eyJhbG..."'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
