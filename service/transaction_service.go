@@ -278,3 +278,5 @@ func mapTransactionToResponse(tx *model.Transaction) model.TransactionResponse {
 		CreatedAt:             tx.CreatedAt,
 	}
 }
+
+

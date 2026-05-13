@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ewallet/model"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -125,4 +126,13 @@ func (r *transactionRepository) GetDailyOutFlow(walletID uuid.UUID, from, to tim
 		GROUP BY TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
 	`, walletID, from, to).Scan(&rows).Error
 	return rows, err
+}
+
+func (r *transactionRepository) ExistsByExternalID(ctx context.Context, externalID string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Transaction{}).
+		Where("external_id = ?", externalID).
+		Count(&count).Error
+	return count > 0, err
 }

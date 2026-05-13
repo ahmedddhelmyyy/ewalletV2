@@ -31,6 +31,8 @@ type Transaction struct {
 	Note     *string `gorm:"type:varchar(255)"`
 
 	CreatedAt time.Time `gorm:"index"`
+
+	ExternalID *string `gorm:"type:varchar(100);uniqueIndex"`
 }
 
 // BeforeCreate hook — generates a UUID before inserting a new Transaction.

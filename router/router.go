@@ -1,4 +1,3 @@
-///Users/ahmedhelmy/Desktop/FUE/MASTER'S/Semester 2/SE/proj/e-wallet-v2/ewallet/router/router.go
 package router
 
 import (
@@ -6,8 +5,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
-	httpSwagger "github.com/swaggo/http-swagger"       // ← add
-	_ "github.com/ewallet/docs"                        // ← add (swag generated)
+	"github.com/go-chi/cors"
+	httpSwagger "github.com/swaggo/http-swagger" // ← add
+	_ "github.com/ewallet/docs"                  // ← add (swag generated)
 	"github.com/ewallet/handler"
 	"github.com/ewallet/middleware"
 )
@@ -29,6 +29,14 @@ func New(deps Dependencies) http.Handler {
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.RealIP)
 	r.Use(middleware.Logger)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:45678"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	// ── Swagger UI ─────────────────────────────────────────────────────────────
 	r.Get("/swagger/*", httpSwagger.Handler(
