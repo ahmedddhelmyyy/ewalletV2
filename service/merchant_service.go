@@ -26,6 +26,7 @@ type MerchantWalletService interface {
 	GetWalletByUserID(ctx context.Context, userID string) (*model.Wallet, error)
 	Deduct(ctx context.Context, userID string, amount int64) error
 	CreditMerchant(ctx context.Context, merchantID string, amount int64) error
+	GetMerchantBalance(ctx context.Context, merchantID string) (int64, error)
 }
 
 type WebhookDispatcher interface {
@@ -51,7 +52,6 @@ func (s *MerchantService) CreateTransaction(ctx context.Context, merchantID stri
 	tx := &model.MerchantTransaction{
 		MerchantID:     merchantID,
 		OrderID:        req.OrderID,
-		IdempotencyKey: idempotencyKey,
 		Amount:         req.Amount,
 		Currency:       req.Currency,
 		Status:         "pending",
@@ -59,6 +59,9 @@ func (s *MerchantService) CreateTransaction(ctx context.Context, merchantID stri
 		CancelURL:      req.CancelURL,
 		RedirectToken:  uuid.New().String(),
 		ExpiresAt:      time.Now().Add(15 * time.Minute),
+	}
+	if idempotencyKey != "" {
+		tx.IdempotencyKey = idempotencyKey
 	}
 
 	if err := s.db.WithContext(ctx).Create(tx).Error; err != nil {
@@ -134,4 +137,8 @@ func (s *MerchantService) ConfirmTransaction(ctx context.Context, token string, 
 
 func (s *MerchantService) ExpireTransaction(ctx context.Context, txID string) error {
 	return s.db.WithContext(ctx).Model(&model.MerchantTransaction{}).Where("id = ? AND status = ?", txID, "pending").Update("status", "expired").Error
+}
+
+func (s *MerchantService) GetMerchantBalance(ctx context.Context, merchantID string) (int64, error) {
+	return s.walletSvc.GetMerchantBalance(ctx, merchantID)
 }

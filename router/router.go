@@ -89,6 +89,7 @@ func New(deps Dependencies) http.Handler {
 				r.Use(middleware.AuthenticateMerchant)
 				r.Post("/transactions", deps.MerchantHandler.CreateTransaction)
 				r.Get("/transactions/{transaction_id}", deps.MerchantHandler.GetTransaction)
+				r.Get("/balance/{merchant_id}", deps.MerchantHandler.GetBalance)
 			})
 		})
 	})

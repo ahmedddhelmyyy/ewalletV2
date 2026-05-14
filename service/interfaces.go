@@ -52,6 +52,7 @@ type MerchantServiceInterface interface {
 	GetTransactionByToken(ctx context.Context, token string) (*model.MerchantTransaction, error)
 	ConfirmTransaction(ctx context.Context, token string, userID string) (*model.MerchantTransaction, error)
 	ExpireTransaction(ctx context.Context, txID string) error
+	GetMerchantBalance(ctx context.Context, merchantID string) (int64, error)
 }
 
 // MerchantBalanceService handles merchant balance queries.

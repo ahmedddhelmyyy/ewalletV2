@@ -128,7 +128,23 @@ func TestMerchantModel(t *testing.T) {
 	}
 }
 
-type mockWalletSvc struct{}
+type mockWebhookSvc struct{}
+
+func (m *mockWebhookSvc) Dispatch(ctx context.Context, merchant model.Merchant, event string, tx *model.MerchantTransaction) error {
+	return nil
+}
+
+type mockWalletSvc struct {
+	merchantBalances map[string]int64
+}
+
+func newMockWalletSvc() *mockWalletSvc {
+	return &mockWalletSvc{
+		merchantBalances: map[string]int64{
+			"merch_123": 0,
+		},
+	}
+}
 
 func (m *mockWalletSvc) GetWalletByUserID(ctx context.Context, userID string) (*model.Wallet, error) {
 	return &model.Wallet{Balance: 1000000}, nil
@@ -141,23 +157,65 @@ func (m *mockWalletSvc) Deduct(ctx context.Context, userID string, amount int64)
 	return nil
 }
 
-type mockWebhookSvc struct{}
+func (m *mockWalletSvc) GetMerchantBalance(ctx context.Context, merchantID string) (int64, error) {
+	return m.merchantBalances[merchantID], nil
+}
 
-func (m *mockWebhookSvc) Dispatch(ctx context.Context, merchant model.Merchant, event string, tx *model.MerchantTransaction) error {
+func (m *mockWalletSvc) CreditMerchant(ctx context.Context, merchantID string, amount int64) error {
+	m.merchantBalances[merchantID] += amount
 	return nil
 }
 
-func TestMockWalletService_Deduct(t *testing.T) {
-	svc := &mockWalletSvc{}
+func (m *mockWalletSvc) DebitMerchant(ctx context.Context, merchantID string, amount int64) error {
+	balance := m.merchantBalances[merchantID]
+	if balance < amount {
+		return fmt.Errorf("insufficient funds")
+	}
+	m.merchantBalances[merchantID] = balance - amount
+	return nil
+}
 
-	err := svc.Deduct(context.Background(), "test_user", 500)
-	if err != nil {
-		t.Errorf("Expected nil error for valid deduction, got %v", err)
+func TestMerchantBalance_CreditOnPayment(t *testing.T) {
+	svc := newMockWalletSvc()
+
+	initialBalance, _ := svc.GetMerchantBalance(context.Background(), "merch_123")
+	if initialBalance != 0 {
+		t.Errorf("Expected initial merchant balance 0, got %d", initialBalance)
 	}
 
-	err = svc.Deduct(context.Background(), "test_user", 2000000)
+	err := svc.CreditMerchant(context.Background(), "merch_123", 5000)
+	if err != nil {
+		t.Errorf("Expected nil error for credit, got %v", err)
+	}
+
+	newBalance, _ := svc.GetMerchantBalance(context.Background(), "merch_123")
+	if newBalance != 5000 {
+		t.Errorf("Expected balance 5000 after credit, got %d", newBalance)
+	}
+}
+
+func TestMerchantBalance_DebitMerchant(t *testing.T) {
+	svc := newMockWalletSvc()
+	svc.merchantBalances["merch_123"] = 10000
+
+	err := svc.DebitMerchant(context.Background(), "merch_123", 3000)
+	if err != nil {
+		t.Errorf("Expected nil error for debit, got %v", err)
+	}
+
+	balance, _ := svc.GetMerchantBalance(context.Background(), "merch_123")
+	if balance != 7000 {
+		t.Errorf("Expected balance 7000 after debit, got %d", balance)
+	}
+}
+
+func TestMerchantBalance_InsufficientFunds(t *testing.T) {
+	svc := newMockWalletSvc()
+	svc.merchantBalances["merch_123"] = 1000
+
+	err := svc.DebitMerchant(context.Background(), "merch_123", 5000)
 	if err == nil {
-		t.Errorf("Expected error for insufficient balance, got nil")
+		t.Errorf("Expected error for insufficient funds, got nil")
 	}
 }
 

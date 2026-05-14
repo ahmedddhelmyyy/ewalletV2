@@ -79,3 +79,30 @@ func (h *MerchantHandler) GetTransaction(w http.ResponseWriter, r *http.Request)
 
 	respondSuccess(w, http.StatusOK, tx)
 }
+
+func (h *MerchantHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	merchant := middleware.GetMerchantFromCtx(r)
+	if merchant.ID == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	merchantID := chi.URLParam(r, "merchant_id")
+	if merchantID != merchant.ID {
+		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		return
+	}
+
+	ctx := r.Context()
+	balance, err := h.svc.GetMerchantBalance(ctx, merchantID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"merchant_id": merchantID,
+		"balance":     balance,
+		"currency":    "USD",
+	})
+}

@@ -12,7 +12,7 @@ type MerchantTransaction struct {
 
 	MerchantID      string    `gorm:"type:varchar(50);not null;index"`
 	OrderID         string    `gorm:"type:varchar(100);not null"`
-	IdempotencyKey  string    `gorm:"type:varchar(100);uniqueIndex;not null"`
+	IdempotencyKey  string    `gorm:"type:varchar(100);index"`
 	Amount          int64     `gorm:"not null"`
 	Currency        string    `gorm:"type:varchar(3);not null;default:'USD'"`
 	Status          string    `gorm:"type:varchar(20);not null;default:'pending'"` // pending, success, failed, expired, refunded
