@@ -19,6 +19,8 @@ type Dependencies struct {
 	TransactionHandler *handler.TransactionHandler
 	BillHandler        *handler.BillHandler
 	ExpenseHandler     *handler.ExpenseHandler
+	MerchantHandler    *handler.MerchantHandler
+	PayHandler         *handler.PayHandler
 	JWTSecret          string
 }
 
@@ -81,6 +83,20 @@ func New(deps Dependencies) http.Handler {
 				r.Get("/flow", deps.ExpenseHandler.GetFlow)
 			})
 		})
+
+		r.Route("/merchant", func(r chi.Router) {
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.AuthenticateMerchant)
+				r.Post("/transactions", deps.MerchantHandler.CreateTransaction)
+				r.Get("/transactions/{transaction_id}", deps.MerchantHandler.GetTransaction)
+			})
+		})
+	})
+
+	r.Route("/pay", func(r chi.Router) {
+		r.Get("/{redirect_token}", deps.PayHandler.Show)
+		r.Post("/{redirect_token}/confirm", deps.PayHandler.Confirm)
+		r.Post("/{redirect_token}/cancel", deps.PayHandler.Cancel)
 	})
 
 	return r
