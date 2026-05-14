@@ -7,8 +7,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/ewallet/handler"
 )
+
+const ContextKeyUserID string = "userID"
 
 type JWTClaims struct {
 	UserID uuid.UUID `json:"user_id"`
@@ -49,7 +50,7 @@ func Authenticate(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), handler.ContextKeyUserID, claims.UserID)
+			ctx := context.WithValue(r.Context(), ContextKeyUserID, claims.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -136,3 +136,16 @@ func (r *transactionRepository) ExistsByExternalID(ctx context.Context, external
 		Count(&count).Error
 	return count > 0, err
 }
+
+func (r *transactionRepository) CreateWithBalanceCredit(ctx context.Context, tx *model.Transaction, walletID uuid.UUID, amount int64) error {
+	return r.db.WithContext(ctx).Transaction(func(txDB *gorm.DB) error {
+		if err := txDB.Create(tx).Error; err != nil {
+			return err
+		}
+		return txDB.Exec(`
+			UPDATE wallets
+			SET balance = balance + ?
+			WHERE id = ?
+		`, amount, walletID).Error
+	})
+}

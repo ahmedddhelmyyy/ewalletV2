@@ -49,6 +49,18 @@ func (r *walletRepository) FindByWalletNumber(walletNumber string) (*model.Walle
 	return &wallet, nil
 }
 
+func (r *walletRepository) FindByID(id uuid.UUID) (*model.Wallet, error) {
+	var wallet model.Wallet
+	err := r.db.Preload("User").Where("id = ?", id).First(&wallet).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ErrWalletNotFound
+		}
+		return nil, err
+	}
+	return &wallet, nil
+}
+
 // UpdateBalance sets the wallet balance to newBalance.
 // This should always be called inside a database transaction for atomicity.
 func (r *walletRepository) UpdateBalance(walletID uuid.UUID, newBalance int64) error {

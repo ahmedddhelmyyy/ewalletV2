@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ type WalletRepository interface {
 	Create(wallet *model.Wallet) error
 	FindByUserID(userID uuid.UUID) (*model.Wallet, error)
 	FindByWalletNumber(walletNumber string) (*model.Wallet, error)
+	FindByID(id uuid.UUID) (*model.Wallet, error)
 	UpdateBalance(walletID uuid.UUID, newBalance int64) error
 	Count() (int64, error)
 }
@@ -30,6 +32,8 @@ type WalletRepository interface {
 type TransactionRepository interface {
 	WithTx(tx *gorm.DB) TransactionRepository
 	Create(tx *model.Transaction) error
+	ExistsByExternalID(ctx context.Context, externalID string) (bool, error)
+	CreateWithBalanceCredit(ctx context.Context, tx *model.Transaction, walletID uuid.UUID, amount int64) error
 	FindByID(id uuid.UUID) (*model.Transaction, error)
 	FindByWallet(walletID uuid.UUID, filters model.TransactionFilters) ([]model.Transaction, int64, error)
 	GetCategorySummary(walletID uuid.UUID, from, to time.Time) ([]CategorySummaryRow, error)

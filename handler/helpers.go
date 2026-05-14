@@ -13,7 +13,7 @@ import (
 
 type contextKey string
 
-const ContextKeyUserID contextKey = "userID"
+const ContextKeyUserID string = "userID"
 
 func userIDFromCtx(r *http.Request) uuid.UUID {
 	id, _ := r.Context().Value(ContextKeyUserID).(uuid.UUID)

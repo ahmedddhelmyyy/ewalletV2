@@ -63,7 +63,7 @@ func (h *PayHandler) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PayHandler) Confirm(w http.ResponseWriter, r *http.Request) {
-	token := chi.URLParam(r, "token")
+	token := chi.URLParam(r, "redirect_token")
 	ctx := r.Context()
 
 	userID := r.FormValue("user_id")
@@ -108,7 +108,7 @@ func (h *PayHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PayHandler) Cancel(w http.ResponseWriter, r *http.Request) {
-	token := chi.URLParam(r, "token")
+	token := chi.URLParam(r, "redirect_token")
 	ctx := r.Context()
 
 	tx, err := h.svc.GetTransactionByToken(ctx, token)

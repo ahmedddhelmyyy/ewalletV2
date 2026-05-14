@@ -13,7 +13,7 @@ import (
 	"github.com/ewallet/repository"
 	"github.com/ewallet/router"
 	"github.com/ewallet/service"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -43,7 +43,7 @@ func main() {
 		logLevel = logger.Info
 	}
 
-	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(cfg.DatabaseURL), &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
@@ -65,6 +65,7 @@ func main() {
 		&model.Transaction{},
 		&model.Bill{},
 		&model.RefreshToken{},
+		&model.MerchantTransaction{},
 	); err != nil {
 		log.Fatalf("FATAL: auto-migrate failed: %v", err)
 	}
@@ -78,18 +79,28 @@ func main() {
 	tokenRepo   := repository.NewRefreshTokenRepository(db)
 
 	// ── Services ──────────────────────────────────────────────────────────────
-	authSvc    := service.NewAuthService(db, cfg, userRepo, walletRepo, tokenRepo)
-	walletSvc  := service.NewWalletService(walletRepo)
-	txSvc      := service.NewTransactionService(db, walletRepo, txRepo, userRepo)
-	billSvc    := service.NewBillService(db, billRepo, walletRepo, txRepo)
-	expenseSvc := service.NewExpenseService(walletRepo, txRepo)
+	authSvc       := service.NewAuthService(db, cfg, userRepo, walletRepo, tokenRepo)
+	walletSvc     := service.NewWalletService(walletRepo)
+	txSvc         := service.NewTransactionService(db, walletRepo, txRepo, userRepo)
+	billSvc       := service.NewBillService(db, billRepo, walletRepo, txRepo)
+	expenseSvc    := service.NewExpenseService(walletRepo, txRepo)
+	webhookSvc    := service.NewWebhookService(txRepo, walletRepo)
+	mockWalletSvc := service.NewMockWalletService()
+	merchantSvc   := service.NewMerchantService(db, mockWalletSvc, webhookSvc)
 
-	// ── Handlers ──────────────────F────────────────────────────────────────────
-	authHandler    := handler.NewAuthHandler(authSvc)
-	walletHandler  := handler.NewWalletHandler(walletSvc)
-	txHandler      := handler.NewTransactionHandler(txSvc)
-	billHandler    := handler.NewBillHandler(billSvc)
-	expenseHandler := handler.NewExpenseHandler(expenseSvc)
+	// ── Handlers ────────────────────────────────────────────────────────────
+	authHandler     := handler.NewAuthHandler(authSvc)
+	walletHandler   := handler.NewWalletHandler(walletSvc)
+	txHandler       := handler.NewTransactionHandler(txSvc)
+	billHandler     := handler.NewBillHandler(billSvc)
+	expenseHandler  := handler.NewExpenseHandler(expenseSvc)
+	merchantHandler := handler.NewMerchantHandler(merchantSvc)
+
+	renderer, err := handler.NewRenderer("./web/templates")
+	if err != nil {
+		log.Fatalf("FATAL: failed to create renderer: %v", err)
+	}
+	payHandler := handler.NewPayHandler(merchantSvc, renderer)
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	r := router.New(router.Dependencies{
@@ -98,6 +109,8 @@ func main() {
 		TransactionHandler: txHandler,
 		BillHandler:        billHandler,
 		ExpenseHandler:     expenseHandler,
+		MerchantHandler:    merchantHandler,
+		PayHandler:        payHandler,
 		JWTSecret:          cfg.JWTSecret,
 	})
 

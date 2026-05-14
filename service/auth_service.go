@@ -228,13 +228,16 @@ func (s *authService) issueTokenPair(userID uuid.UUID) (*model.TokenPair, error)
 	}, nil
 }
 
-// isDuplicateKeyError detects PostgreSQL unique-constraint violations via error message inspection.
+// isDuplicateKeyError detects database unique-constraint violations.
 func isDuplicateKeyError(err error) bool {
 	if err == nil {
 		return false
 	}
 	errMsg := err.Error()
-	return contains(errMsg, "duplicate key") || contains(errMsg, "unique constraint") || contains(errMsg, "23505")
+	return contains(errMsg, "duplicate key") ||
+		contains(errMsg, "unique constraint") ||
+		contains(errMsg, "UNIQUE constraint failed") ||
+		contains(errMsg, "23505")
 }
 
 func contains(s, substr string) bool {
