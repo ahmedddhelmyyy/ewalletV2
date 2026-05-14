@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,4 +43,18 @@ type BillService interface {
 type ExpenseService interface {
 	GetSummary(userID uuid.UUID, from, to time.Time) (*model.ExpenseSummaryResponse, error)
 	GetFlow(userID uuid.UUID, from, to time.Time) (*model.MoneyFlowResponse, error)
+}
+
+// MerchantServiceInterface handles merchant payment transaction operations.
+type MerchantServiceInterface interface {
+	CreateTransaction(ctx context.Context, merchantID string, req *model.CreateMerchantTransactionRequest, idempotencyKey string) (*model.MerchantTransaction, bool, error)
+	GetTransactionByID(ctx context.Context, txID string, merchantID string) (*model.MerchantTransaction, error)
+	GetTransactionByToken(ctx context.Context, token string) (*model.MerchantTransaction, error)
+	ConfirmTransaction(ctx context.Context, token string, userID string) (*model.MerchantTransaction, error)
+	ExpireTransaction(ctx context.Context, txID string) error
+}
+
+// MerchantBalanceService handles merchant balance queries.
+type MerchantBalanceService interface {
+	GetMerchantBalance(ctx context.Context, merchantID string) (int64, error)
 }

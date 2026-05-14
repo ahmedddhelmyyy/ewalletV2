@@ -25,6 +25,7 @@ type MerchantService struct {
 type MerchantWalletService interface {
 	GetWalletByUserID(ctx context.Context, userID string) (*model.Wallet, error)
 	Deduct(ctx context.Context, userID string, amount int64) error
+	CreditMerchant(ctx context.Context, merchantID string, amount int64) error
 }
 
 type WebhookDispatcher interface {
@@ -116,6 +117,8 @@ func (s *MerchantService) ConfirmTransaction(ctx context.Context, token string, 
 	tx.Status = "success"
 	tx.UserID = userID
 	s.db.WithContext(ctx).Save(tx)
+
+	s.walletSvc.CreditMerchant(ctx, tx.MerchantID, tx.Amount)
 
 	go func() {
 		merchant := model.Merchant{
