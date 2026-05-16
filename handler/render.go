@@ -20,6 +20,7 @@ type PayPageData struct {
 	ErrorMessage  string
 	MerchantName  string
 	FinalState    bool
+	UserID        string
 }
 
 func NewRenderer(templatePath string) (*Renderer, error) {

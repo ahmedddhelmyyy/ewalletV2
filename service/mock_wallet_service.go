@@ -18,7 +18,8 @@ type MockWalletService struct {
 func NewMockWalletService() *MockWalletService {
 	return &MockWalletService{
 		userBalances: map[string]int64{
-			"test_user": 1000000,
+			"test_user":       1000000,
+			"john@example.com": 1000000,
 		},
 		merchantBalances: map[string]int64{
 			"merch_123": 0,

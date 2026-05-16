@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/ewallet/service"
 )
 
@@ -18,7 +19,7 @@ func NewPayHandler(svc service.MerchantServiceInterface, renderer *Renderer) *Pa
 }
 
 func (h *PayHandler) Show(w http.ResponseWriter, r *http.Request) {
-	token := chi.URLParam(r, "token")
+	token := chi.URLParam(r, "redirect_token")
 	ctx := r.Context()
 
 	tx, err := h.svc.GetTransactionByToken(ctx, token)
@@ -50,6 +51,11 @@ func (h *PayHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = "test_user"
+	}
+
 	h.renderer.Execute(w, "pay.html", PayPageData{
 		RedirectToken: token,
 		OrderID:       tx.OrderID,
@@ -59,6 +65,7 @@ func (h *PayHandler) Show(w http.ResponseWriter, r *http.Request) {
 		Status:        tx.Status,
 		MerchantName:  "Merchant Demo",
 		FinalState:    false,
+		UserID:        userID,
 	})
 }
 
@@ -66,45 +73,26 @@ func (h *PayHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "redirect_token")
 	ctx := r.Context()
 
-	userID := r.FormValue("user_id")
-	if userID == "" {
-		http.Redirect(w, r, "/login?redirect="+token, http.StatusSeeOther)
+	userUUID := userIDFromCtx(r)
+	if userUUID == uuid.Nil {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil)
 		return
 	}
 
-	tx, err := h.svc.ConfirmTransaction(ctx, token, userID)
+	tx, err := h.svc.ConfirmTransaction(ctx, token, userUUID)
 	if err != nil {
-		tx, _ = h.svc.GetTransactionByToken(ctx, token)
-		data := PayPageData{
-			RedirectToken: token,
-			ErrorMessage:  err.Error(),
-		}
-		if tx != nil {
-			data.OrderID = tx.OrderID
-			data.Amount = formatAmount(tx.Amount)
-			data.Currency = tx.Currency
-			data.ExpiresAt = tx.ExpiresAt
-			data.MerchantName = "Merchant Demo"
-		}
-		h.renderer.Execute(w, "pay.html", data)
+		respondError(w, http.StatusBadRequest, "PAYMENT_ERROR", err.Error(), nil)
 		return
 	}
 
 	if tx.Status == "failed" {
-		h.renderer.Execute(w, "pay.html", PayPageData{
-			RedirectToken: token,
-			OrderID:        tx.OrderID,
-			Amount:         formatAmount(tx.Amount),
-			Currency:       tx.Currency,
-			ExpiresAt:      tx.ExpiresAt,
-			Status:         tx.Status,
-			MerchantName:   "Merchant Demo",
-			ErrorMessage:   "Insufficient balance",
-		})
+		respondError(w, http.StatusBadRequest, "INSUFFICIENT_FUNDS", "Insufficient balance", nil)
 		return
 	}
 
-	http.Redirect(w, r, tx.ReturnURL+"?transaction_id="+tx.ID.String(), http.StatusSeeOther)
+	respondJSON(w, http.StatusOK, map[string]string{
+		"redirect_url": tx.ReturnURL + "?transaction_id=" + tx.ID.String(),
+	})
 }
 
 func (h *PayHandler) Cancel(w http.ResponseWriter, r *http.Request) {

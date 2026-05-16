@@ -96,7 +96,10 @@ func New(deps Dependencies) http.Handler {
 
 	r.Route("/pay", func(r chi.Router) {
 		r.Get("/{redirect_token}", deps.PayHandler.Show)
-		r.Post("/{redirect_token}/confirm", deps.PayHandler.Confirm)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authenticate(deps.JWTSecret))
+			r.Post("/{redirect_token}/confirm", deps.PayHandler.Confirm)
+		})
 		r.Post("/{redirect_token}/cancel", deps.PayHandler.Cancel)
 	})
 

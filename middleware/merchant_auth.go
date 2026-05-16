@@ -19,6 +19,7 @@ type Merchant struct {
 	Secret        string
 	WebhookURL    string
 	WebhookSecret string
+	UserID        string
 }
 
 var merchants = map[string]Merchant{
@@ -26,8 +27,9 @@ var merchants = map[string]Merchant{
 		ID:            "merch_123",
 		APIKey:        "key_abc123",
 		Secret:        "supersecret",
-		WebhookURL:    "https://shop.com/api/payments/wallet/webhook",
+		WebhookURL:    "http://localhost:7001/api/payments/wallet/webhook",
 		WebhookSecret: "whsec_test",
+		UserID:        "1ee3be3b-814b-40d0-9a47-dfd9e5ceb6a6",
 	},
 }
 

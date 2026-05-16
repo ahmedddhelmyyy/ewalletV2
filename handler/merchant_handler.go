@@ -34,7 +34,7 @@ func (h *MerchantHandler) CreateTransaction(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
-	tx, created, err := h.svc.CreateTransaction(ctx, merchant.ID, &req, r.Header.Get("Idempotency-Key"))
+	tx, created, err := h.svc.CreateTransaction(ctx, merchant.ID, merchant.UserID, &req, r.Header.Get("Idempotency-Key"))
 	if err != nil {
 		handleServiceError(w, err)
 		return

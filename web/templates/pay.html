@@ -43,7 +43,7 @@
         
         {{if not .FinalState}}
         <form method="POST" action="/pay/{{.RedirectToken}}/confirm">
-            <input type="hidden" name="user_id" value="test_user">
+            <input type="hidden" name="user_id" value="{{.UserID}}">
             <div class="buttons">
                 <button type="submit" class="btn-pay">Pay Now</button>
                 <button type="button" class="btn-cancel" onclick="window.location.href='/pay/{{.RedirectToken}}/cancel'">Cancel</button>

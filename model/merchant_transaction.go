@@ -11,6 +11,7 @@ type MerchantTransaction struct {
 	ID uuid.UUID `gorm:"type:uuid;primaryKey"`
 
 	MerchantID      string    `gorm:"type:varchar(50);not null;index"`
+	MerchantUserID  string    `gorm:"type:varchar(50)"`
 	OrderID         string    `gorm:"type:varchar(100);not null"`
 	IdempotencyKey  string    `gorm:"type:varchar(100);index"`
 	Amount          int64     `gorm:"not null"`
@@ -20,6 +21,7 @@ type MerchantTransaction struct {
 	CancelURL       string    `gorm:"type:text"`
 	RedirectToken   string    `gorm:"type:varchar(100);uniqueIndex"`
 	UserID          string    `gorm:"type:varchar(50)"`
+	WebhookURL      string    `gorm:"type:text"`
 	CreatedAt       time.Time `gorm:"index"`
 	UpdatedAt       time.Time
 	ExpiresAt       time.Time `gorm:"index"`
@@ -39,11 +41,12 @@ func (m *MerchantTransaction) BeforeCreate(_ *gorm.DB) error {
 }
 
 type CreateMerchantTransactionRequest struct {
-	OrderID   string `json:"order_id" required:"true"`
-	Amount    int64  `json:"amount" required:"true"`
-	Currency  string `json:"currency" required:"true"`
-	ReturnURL string `json:"return_url" required:"true"`
-	CancelURL string `json:"cancel_url"`
+	OrderID    string `json:"order_id" required:"true"`
+	Amount     int64  `json:"amount" required:"true"`
+	Currency   string `json:"currency" required:"true"`
+	ReturnURL  string `json:"return_url" required:"true"`
+	CancelURL  string `json:"cancel_url"`
+	WebhookURL string `json:"webhook_url"`
 }
 
 type MerchantTransactionResponse struct {

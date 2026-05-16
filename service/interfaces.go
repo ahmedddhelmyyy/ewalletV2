@@ -47,10 +47,10 @@ type ExpenseService interface {
 
 // MerchantServiceInterface handles merchant payment transaction operations.
 type MerchantServiceInterface interface {
-	CreateTransaction(ctx context.Context, merchantID string, req *model.CreateMerchantTransactionRequest, idempotencyKey string) (*model.MerchantTransaction, bool, error)
+	CreateTransaction(ctx context.Context, merchantID string, merchantUserID string, req *model.CreateMerchantTransactionRequest, idempotencyKey string) (*model.MerchantTransaction, bool, error)
 	GetTransactionByID(ctx context.Context, txID string, merchantID string) (*model.MerchantTransaction, error)
 	GetTransactionByToken(ctx context.Context, token string) (*model.MerchantTransaction, error)
-	ConfirmTransaction(ctx context.Context, token string, userID string) (*model.MerchantTransaction, error)
+	ConfirmTransaction(ctx context.Context, token string, userUUID uuid.UUID) (*model.MerchantTransaction, error)
 	ExpireTransaction(ctx context.Context, txID string) error
 	GetMerchantBalance(ctx context.Context, merchantID string) (int64, error)
 }

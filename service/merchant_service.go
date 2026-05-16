@@ -37,7 +37,7 @@ func NewMerchantService(db *gorm.DB, walletSvc MerchantWalletService, webhookSvc
 	return &MerchantService{db: db, walletSvc: walletSvc, webhookSvc: webhookSvc}
 }
 
-func (s *MerchantService) CreateTransaction(ctx context.Context, merchantID string, req *model.CreateMerchantTransactionRequest, idempotencyKey string) (*model.MerchantTransaction, bool, error) {
+func (s *MerchantService) CreateTransaction(ctx context.Context, merchantID string, merchantUserID string, req *model.CreateMerchantTransactionRequest, idempotencyKey string) (*model.MerchantTransaction, bool, error) {
 	if idempotencyKey != "" {
 		var existing model.MerchantTransaction
 		err := s.db.WithContext(ctx).Where("idempotency_key = ? AND merchant_id = ?", idempotencyKey, merchantID).First(&existing).Error
@@ -51,12 +51,14 @@ func (s *MerchantService) CreateTransaction(ctx context.Context, merchantID stri
 
 	tx := &model.MerchantTransaction{
 		MerchantID:     merchantID,
+		MerchantUserID: merchantUserID,
 		OrderID:        req.OrderID,
 		Amount:         req.Amount,
 		Currency:       req.Currency,
 		Status:         "pending",
 		ReturnURL:      req.ReturnURL,
 		CancelURL:      req.CancelURL,
+		WebhookURL:     req.WebhookURL,
 		RedirectToken:  uuid.New().String(),
 		ExpiresAt:      time.Now().Add(15 * time.Minute),
 	}
@@ -87,7 +89,7 @@ func (s *MerchantService) GetTransactionByToken(ctx context.Context, token strin
 	return &tx, nil
 }
 
-func (s *MerchantService) ConfirmTransaction(ctx context.Context, token string, userID string) (*model.MerchantTransaction, error) {
+func (s *MerchantService) ConfirmTransaction(ctx context.Context, token string, userUUID uuid.UUID) (*model.MerchantTransaction, error) {
 	tx, err := s.GetTransactionByToken(ctx, token)
 	if err != nil {
 		return nil, err
@@ -103,34 +105,90 @@ func (s *MerchantService) ConfirmTransaction(ctx context.Context, token string, 
 		return nil, ErrTransactionExpired
 	}
 
-	if err := s.walletSvc.Deduct(ctx, userID, tx.Amount); err != nil {
+	var customerWallet model.Wallet
+	if err := s.db.WithContext(ctx).Where("user_id = ?", userUUID).Preload("User").First(&customerWallet).Error; err != nil {
+		return nil, fmt.Errorf("customer wallet not found: %w", err)
+	}
+
+	if customerWallet.Balance < tx.Amount {
 		tx.Status = "failed"
 		s.db.WithContext(ctx).Save(tx)
-		go func() {
-			merchant := model.Merchant{
-				ID:            tx.MerchantID,
-				WebhookURL:    "https://shop.com/api/payments/wallet/webhook",
-				WebhookSecret: "whsec_test",
-			}
-			s.webhookSvc.Dispatch(context.Background(), merchant, "transaction.failed", tx)
-		}()
 		return nil, ErrInsufficientBalance
 	}
 
-	tx.Status = "success"
-	tx.UserID = userID
-	s.db.WithContext(ctx).Save(tx)
+	merchantUserUUID, err := uuid.Parse(tx.MerchantUserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid merchant user id: %w", err)
+	}
 
-	s.walletSvc.CreditMerchant(ctx, tx.MerchantID, tx.Amount)
+	var merchantWallet model.Wallet
+	if err := s.db.WithContext(ctx).Where("user_id = ?", merchantUserUUID).Preload("User").First(&merchantWallet).Error; err != nil {
+		return nil, fmt.Errorf("merchant wallet not found: %w", err)
+	}
 
-	go func() {
-		merchant := model.Merchant{
-			ID:            tx.MerchantID,
-			WebhookURL:    "https://shop.com/api/payments/wallet/webhook",
-			WebhookSecret: "whsec_test",
+	err = s.db.WithContext(ctx).Transaction(func(dbTx *gorm.DB) error {
+		if err := dbTx.Model(&customerWallet).Update("balance", customerWallet.Balance-tx.Amount).Error; err != nil {
+			return err
 		}
-		s.webhookSvc.Dispatch(context.Background(), merchant, "transaction.success", tx)
-	}()
+		if err := dbTx.Model(&merchantWallet).Update("balance", merchantWallet.Balance+tx.Amount).Error; err != nil {
+			return err
+		}
+
+		debitTx := &model.Transaction{
+			SenderWalletID:        &customerWallet.ID,
+			SenderWalletNumber:    &customerWallet.WalletNumber,
+			RecipientWalletID:     &merchantWallet.ID,
+			RecipientWalletNumber: &merchantWallet.WalletNumber,
+			Type:                  "send",
+			Status:                "completed",
+			Amount:                tx.Amount,
+			Currency:              tx.Currency,
+			Category:              "transfer",
+		}
+		if err := dbTx.Create(debitTx).Error; err != nil {
+			return err
+		}
+
+		creditTx := &model.Transaction{
+			SenderWalletID:        &customerWallet.ID,
+			SenderWalletNumber:    &customerWallet.WalletNumber,
+			RecipientWalletID:     &merchantWallet.ID,
+			RecipientWalletNumber: &merchantWallet.WalletNumber,
+			Type:                  "receive",
+			Status:                "completed",
+			Amount:                tx.Amount,
+			Currency:              tx.Currency,
+			Category:              "transfer",
+		}
+		if err := dbTx.Create(creditTx).Error; err != nil {
+			return err
+		}
+
+		tx.Status = "success"
+		tx.UserID = userUUID.String()
+		return dbTx.Save(tx).Error
+	})
+
+	if err != nil {
+		tx.Status = "failed"
+		s.db.WithContext(ctx).Save(tx)
+		go func(whURL, whSecret string, txn *model.MerchantTransaction) {
+			whURL = tx.WebhookURL
+			if whURL == "" {
+				return
+			}
+			s.webhookSvc.Dispatch(context.Background(), model.Merchant{WebhookURL: whURL, WebhookSecret: whSecret}, "transaction.failed", txn)
+		}(tx.WebhookURL, "whsec_test", tx)
+		return nil, err
+	}
+
+	go func(whURL, whSecret string, txn *model.MerchantTransaction) {
+		whURL = tx.WebhookURL
+		if whURL == "" {
+			return
+		}
+		s.webhookSvc.Dispatch(context.Background(), model.Merchant{WebhookURL: whURL, WebhookSecret: whSecret}, "transaction.success", txn)
+	}(tx.WebhookURL, "whsec_test", tx)
 
 	return tx, nil
 }
